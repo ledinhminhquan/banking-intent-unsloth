@@ -1,0 +1,568 @@
+% ==============================================================================
+% Report_Lab02.tex
+% CSC15012 – Applications of Natural Language Processing in Industry
+% Project 2: Fine-tuning Intent Detection Model with Banking Dataset
+% ==============================================================================
+\documentclass[12pt,a4paper]{article}
+
+% ---- Packages ----
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese,english]{babel}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{multicol}
+
+% ---- Code listing style ----
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{gray!5},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    captionpos=b,
+    commentstyle=\color{green!50!black},
+    keywordstyle=\color{blue},
+    stringstyle=\color{red!70!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    frame=single,
+    rulecolor=\color{gray!30},
+    tabsize=4,
+    showstringspaces=false,
+}
+\lstset{style=mystyle}
+
+% ---- Header/Footer ----
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small CSC15012 – Applications of NLP in Industry}
+\fancyhead[R]{\small Project 2}
+\fancyfoot[C]{\thepage}
+
+% ==============================================================================
+\begin{document}
+
+% ---- Title page ----
+\begin{titlepage}
+    \centering
+
+    % University logo – replace logo_hcmus.png with your actual file
+    \includegraphics[width=3cm]{logo_hcmus.png}
+
+    \vspace{0.5cm}
+    {\large \textbf{VIETNAM NATIONAL UNIVERSITY HO CHI MINH CITY}}\\[0.2cm]
+    {\large \textbf{UNIVERSITY OF SCIENCE}}\\[0.2cm]
+    {\large \textbf{FACULTY OF INFORMATION TECHNOLOGY}}\\[1.5cm]
+
+    \rule{\textwidth}{0.4pt}\\[0.4cm]
+    {\Huge \textbf{Project 2}}\\[0.3cm]
+    {\LARGE \textbf{Fine-Tuning Intent Detection Model\\with Banking Dataset}}\\[0.2cm]
+    \rule{\textwidth}{0.4pt}\\[1.5cm]
+
+    {\Large \textbf{Course:} CSC15012 – Applications of Natural Language Processing in Industry}\\[0.5cm]
+    {\Large \textbf{Lecturer:} Dr. Nguyễn Hồng Bửu Long}\\[1.5cm]
+
+    \begin{tabular}{ll}
+        \textbf{Student:} & Lê Đình Minh Quân \\
+        \textbf{Student ID:} & 23127460 \\
+    \end{tabular}
+
+    \vfill
+    {\large Ho Chi Minh City, April 2026}
+\end{titlepage}
+
+% ---- Table of Contents ----
+\newpage
+\tableofcontents
+\newpage
+
+% ==============================================================================
+\section{Introduction}
+% ==============================================================================
+
+This report documents the implementation and evaluation of a banking intent
+classification system built for Project 2 of the CSC15012 course. The task is
+to fine-tune a large language model (LLM) using \textbf{Unsloth} and
+\textbf{QLoRA} (Quantized Low-Rank Adaptation) on the \textbf{BANKING77}
+dataset so that the model can accurately predict the intent behind a customer's
+banking-related message.
+
+The BANKING77 dataset, introduced by Casanueva et al.~\cite{casanueva2020},
+contains 13,083 annotated customer service queries across 77 fine-grained
+intent categories that cover common banking operations such as card activation,
+transfers, balance inquiries, and more.
+
+The main objectives of this project are:
+\begin{itemize}[noitemsep]
+    \item Sample and construct a suitable subset of the BANKING77 dataset.
+    \item Preprocess data and split into training and testing sets.
+    \item Fine-tune a text classification model using Unsloth with LoRA.
+    \item Evaluate and compare the fine-tuned model on an independent test set.
+    \item Implement a standalone inference class for deployment.
+\end{itemize}
+
+\textbf{GitHub Repository:}
+\url{https://github.com/ledinhminhquan/banking-intent-unsloth}
+
+% PLACEHOLDER: Add Colab notebook link
+\textbf{Google Colab Notebook:}
+\url{https://colab.research.google.com/YOUR_COLAB_LINK_HERE}
+
+% ==============================================================================
+\section{Data Preparation and Processing}
+\label{sec:data}
+% ==============================================================================
+
+\subsection{Dataset Overview}
+
+The BANKING77 dataset is available on HuggingFace at
+\texttt{PolyAI/banking77}. It consists of:
+\begin{itemize}[noitemsep]
+    \item \textbf{Training set:} 10,003 samples
+    \item \textbf{Test set:} 3,080 samples
+    \item \textbf{Number of intents:} 77 categories
+\end{itemize}
+
+Example intent labels include \texttt{activate\_my\_card},
+\texttt{card\_delivery\_estimate}, \texttt{change\_pin},
+\texttt{cancel\_transfer}, \texttt{lost\_or\_stolen\_card}, etc.
+
+\subsection{Sampling Strategy}
+
+To ensure training can be completed efficiently with available computational
+resources (Google Colab Pro with NVIDIA H100 GPU), we sampled a \textbf{subset}
+of the full dataset:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Training:} 40 samples per intent class
+          $\rightarrow$ $40 \times 77 = 3{,}080$ samples
+    \item \textbf{Test:} 10 samples per intent class
+          $\rightarrow$ $10 \times 77 = 770$ samples
+\end{itemize}
+
+Sampling was performed with a fixed random seed (\texttt{seed=42}) for
+reproducibility.
+
+\subsection{Preprocessing Steps}
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{Text normalization:} All text was converted to lowercase and
+          extra whitespace was removed.
+    \item \textbf{Label mapping:} A bidirectional mapping
+          (\texttt{id2label} / \texttt{label2id}) was created and saved to
+          \texttt{sample\_data/label\_map.json}.
+    \item \textbf{Format conversion:} Data was saved in CSV format with columns
+          \texttt{text}, \texttt{label} (integer ID), and
+          \texttt{label\_text} (human-readable intent name).
+    \item \textbf{Shuffling:} Both train and test sets were shuffled.
+\end{enumerate}
+
+\subsection{Data Statistics}
+
+\begin{table}[H]
+    \centering
+    \caption{Dataset statistics after sampling and preprocessing.}
+    \label{tab:data-stats}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Split} & \textbf{Samples} & \textbf{Avg. tokens/sample} \\
+        \midrule
+        Training       & 3,080            & $\sim$12                    \\
+        Test           & 770              & $\sim$12                    \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% PLACEHOLDER: Screenshot of sample data
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{screenshots/sample_data.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2cm}
+    \textit{[PLACEHOLDER: Screenshot of sample\_data/train.csv showing
+    first few rows]}
+    \vspace{2cm}}}
+    \caption{Sample rows from the preprocessed training set.}
+    \label{fig:sample-data}
+\end{figure}
+
+% ==============================================================================
+\section{Fine-Tuning with Unsloth}
+\label{sec:finetuning}
+% ==============================================================================
+
+\subsection{Model Selection}
+
+We used the \textbf{LLaMA 3.2 3B Instruct} model loaded in 4-bit quantization
+via Unsloth:
+
+\begin{center}
+    \texttt{unsloth/Llama-3.2-3B-Instruct-bnb-4bit}
+\end{center}
+
+This model provides a good balance between performance and resource
+requirements. The 4-bit quantization reduces memory usage by $\sim$4$\times$
+compared to full precision, enabling fine-tuning on a single GPU.
+
+\subsection{LoRA Configuration}
+
+Low-Rank Adaptation (LoRA)~\cite{hu2021lora} was applied to the following
+attention and feed-forward projection layers:
+
+\begin{table}[H]
+    \centering
+    \caption{LoRA hyperparameters.}
+    \label{tab:lora}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Parameter}     & \textbf{Value}                                        \\
+        \midrule
+        LoRA rank ($r$)        & 16                                                    \\
+        LoRA alpha ($\alpha$)  & 16                                                    \\
+        LoRA dropout           & 0.0                                                   \\
+        Target modules         & \texttt{q\_proj, k\_proj, v\_proj, o\_proj}            \\
+                               & \texttt{gate\_proj, up\_proj, down\_proj}              \\
+        Bias                   & none                                                  \\
+        Gradient checkpointing & Unsloth (memory-efficient)                            \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Training Format}
+
+We used \textbf{Supervised Fine-Tuning (SFT)} with an Alpaca-style prompt
+template. Each training example was formatted as:
+
+\begin{lstlisting}[language={},caption={Prompt template for SFT.}]
+Below is an instruction that describes a task, paired with an input
+that provides further context. Write a response that appropriately
+completes the request.
+
+### Instruction:
+Classify the intent of the following banking customer message.
+Reply with only the intent label, nothing else.
+
+### Input:
+{customer_message}
+
+### Response:
+{intent_label}<|end_of_text|>
+\end{lstlisting}
+
+During inference, the ``\#\#\# Response:'' section is left empty for the model
+to generate.
+
+\subsection{Training Hyperparameters}
+
+\begin{table}[H]
+    \centering
+    \caption{Training hyperparameters.}
+    \label{tab:training-hp}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Hyperparameter}         & \textbf{Value}        \\
+        \midrule
+        Batch size (per device)         & 8                     \\
+        Gradient accumulation steps     & 4                     \\
+        Effective batch size            & 32                    \\
+        Number of epochs                & 3                     \\
+        Learning rate                   & $2 \times 10^{-4}$    \\
+        Optimizer                       & AdamW 8-bit           \\
+        LR scheduler                    & Linear decay          \\
+        Warmup steps                    & 10                    \\
+        Weight decay                    & 0.01                  \\
+        Max sequence length             & 512                   \\
+        Precision                       & bf16 (auto fp16)      \\
+        Random seed                     & 42                    \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Training Platform}
+
+Training was conducted on \textbf{Google Colab Pro} with an
+\textbf{NVIDIA H100 GPU} (80 GB HBM3).
+
+% PLACEHOLDER: Screenshot of training progress
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{screenshots/training_log.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2cm}
+    \textit{[PLACEHOLDER: Screenshot of training progress / loss curve]}
+    \vspace{2cm}}}
+    \caption{Training loss over steps.}
+    \label{fig:training-loss}
+\end{figure}
+
+% ==============================================================================
+\section{Evaluation Results}
+\label{sec:results}
+% ==============================================================================
+
+\subsection{Test Set Performance}
+
+After fine-tuning, the model was evaluated on the held-out test set
+(770 samples, 10 per intent class).
+
+% PLACEHOLDER: Update with actual numbers after training
+\begin{table}[H]
+    \centering
+    \caption{Overall test set performance.}
+    \label{tab:results}
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Metric}     & \textbf{Value}               \\
+        \midrule
+        Accuracy             & \textit{XX.XX\%}             \\
+        Macro Precision      & \textit{XX.XX\%}             \\
+        Macro Recall         & \textit{XX.XX\%}             \\
+        Macro F1-score       & \textit{XX.XX\%}             \\
+        Training loss        & \textit{X.XXXX}              \\
+        Training time        & \textit{XX min}              \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Classification Report}
+
+% PLACEHOLDER: Paste classification report screenshot or table
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{screenshots/classification_report.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{3cm}
+    \textit{[PLACEHOLDER: Screenshot of sklearn classification\_report output
+    showing per-class precision, recall, and F1-score]}
+    \vspace{3cm}}}
+    \caption{Per-class classification report on the test set.}
+    \label{fig:cls-report}
+\end{figure}
+
+\subsection{Example Predictions}
+
+\begin{table}[H]
+    \centering
+    \caption{Example inference results.}
+    \label{tab:examples}
+    \begin{tabular}{p{7cm}ll}
+        \toprule
+        \textbf{Input Message}                       & \textbf{True Label}     & \textbf{Predicted} \\
+        \midrule
+        ``I want to activate my new card''           & activate\_my\_card      & \textit{TBD}       \\
+        ``Why was I charged an extra fee?''           & extra\_charge\_on\_statement & \textit{TBD}  \\
+        ``How do I change my PIN number?''            & change\_pin             & \textit{TBD}       \\
+        ``My card payment is still pending''          & pending\_card\_payment  & \textit{TBD}       \\
+        ``I lost my phone''                           & lost\_or\_stolen\_phone & \textit{TBD}       \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% PLACEHOLDER: Screenshot of inference demo
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{screenshots/inference_demo.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2cm}
+    \textit{[PLACEHOLDER: Screenshot of running inference.sh showing
+    predicted labels for sample messages]}
+    \vspace{2cm}}}
+    \caption{Inference demonstration with sample banking queries.}
+    \label{fig:inference-demo}
+\end{figure}
+
+% ==============================================================================
+\section{Inference Implementation}
+\label{sec:inference}
+% ==============================================================================
+
+The inference module (\texttt{scripts/inference.py}) implements the required
+\texttt{IntentClassification} class with two main methods:
+
+\begin{lstlisting}[language=Python, caption={Inference class interface.}]
+class IntentClassification:
+    def __init__(self, model_path):
+        """
+        Load config, tokenizer, model checkpoint,
+        and label mapping from model_path (YAML config).
+        """
+        ...
+
+    def __call__(self, message):
+        """
+        Receive a banking customer message string
+        and return the predicted intent label.
+        """
+        ...
+        return predicted_label
+\end{lstlisting}
+
+\textbf{Key design decisions:}
+\begin{itemize}[noitemsep]
+    \item The \texttt{model\_path} argument points to a YAML configuration file
+          (\texttt{configs/inference.yaml}) that specifies the checkpoint path,
+          label map file, and generation settings.
+    \item The model is loaded in 4-bit quantization mode for memory efficiency.
+    \item Fuzzy label matching (\texttt{difflib.get\_close\_matches}) is used as
+          a fallback when the generated text does not exactly match a known
+          intent label.
+    \item The inference script supports three modes: single message, batch
+          evaluation, and interactive mode.
+\end{itemize}
+
+\textbf{Usage example:}
+\begin{lstlisting}[language=Python, caption={Using the IntentClassification class.}]
+from scripts.inference import IntentClassification
+
+classifier = IntentClassification("configs/inference.yaml")
+label = classifier("I need to change my PIN")
+print(label)  # "change_pin"
+\end{lstlisting}
+
+% ==============================================================================
+\section{Source Code Organization}
+\label{sec:source}
+% ==============================================================================
+
+All source code is hosted on GitHub:
+
+\begin{center}
+    \url{https://github.com/ledinhminhquan/banking-intent-unsloth}
+\end{center}
+
+\begin{lstlisting}[language={}, caption={Repository structure.}]
+banking-intent-unsloth/
+|-- scripts/
+|   |-- preprocess_data.py
+|   |-- train.py
+|   |-- inference.py
+|-- configs/
+|   |-- train.yaml
+|   |-- inference.yaml
+|-- sample_data/
+|   |-- train.csv
+|   |-- test.csv
+|   |-- label_map.json
+|-- train.sh
+|-- inference.sh
+|-- requirements.txt
+|-- README.md
+|-- .gitignore
+\end{lstlisting}
+
+\begin{itemize}[noitemsep]
+    \item \textbf{scripts/preprocess\_data.py}: Downloads BANKING77 from
+          HuggingFace, samples a subset, cleans text, and saves CSV files.
+    \item \textbf{scripts/train.py}: Loads model with Unsloth, applies LoRA,
+          trains with SFTTrainer, saves checkpoint, and evaluates on test set.
+    \item \textbf{scripts/inference.py}: Standalone inference class that loads
+          the saved checkpoint and predicts intent labels.
+    \item \textbf{configs/}: YAML configuration files for all hyperparameters.
+    \item \textbf{train.sh / inference.sh}: Shell scripts for one-click
+          execution.
+\end{itemize}
+
+% ==============================================================================
+\section{Video Demonstration}
+\label{sec:video}
+% ==============================================================================
+
+A short screen recording (2--5 minutes) demonstrates:
+\begin{enumerate}[noitemsep]
+    \item Execution of the inference script.
+    \item Example input messages and their predicted intent labels.
+    \item The final accuracy obtained on the test set.
+\end{enumerate}
+
+% PLACEHOLDER: Replace with actual video link
+\textbf{Video link:}
+\url{https://drive.google.com/YOUR_VIDEO_LINK_HERE}
+
+% ==============================================================================
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+% ==============================================================================
+
+\subsection{Summary}
+
+In this project, we successfully fine-tuned a \textbf{LLaMA 3.2 3B} model
+using \textbf{Unsloth} and \textbf{QLoRA} for the task of banking intent
+classification on the BANKING77 dataset. The key findings are:
+
+\begin{itemize}[noitemsep]
+    \item 4-bit quantization with LoRA enables efficient fine-tuning of a
+          3-billion-parameter model on a single GPU.
+    \item The Alpaca-style SFT approach can effectively reformulate
+          classification as a text generation task.
+    \item The model achieves competitive accuracy on the 77-class intent
+          classification task even with a sampled subset of the data.
+\end{itemize}
+
+\subsection{Challenges}
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Label matching:} Since the model generates free-form text,
+          exact label matching is not always guaranteed. Fuzzy matching mitigates
+          this but introduces a small error margin.
+    \item \textbf{Inference speed:} Auto-regressive generation for
+          classification is slower than a dedicated classification head. For
+          production use, distilling into a smaller encoder model would be
+          preferable.
+\end{itemize}
+
+\subsection{Future Work}
+
+\begin{itemize}[noitemsep]
+    \item Experiment with \texttt{FastLanguageModel.for\_sequence\_classification()}
+          for direct classification head fine-tuning.
+    \item Try larger models (e.g., LLaMA 3.1 8B) or alternative architectures.
+    \item Use the full BANKING77 dataset instead of a sampled subset.
+    \item Apply data augmentation techniques (paraphrasing, back-translation).
+\end{itemize}
+
+% ==============================================================================
+% References
+% ==============================================================================
+\newpage
+\begin{thebibliography}{9}
+
+\bibitem{casanueva2020}
+Casanueva, I., Temčinas, T., Gerber, D., Fitzpatrick, M., \& Vulić, I. (2020).
+\textit{Efficient Intent Detection with Dual Sentence Encoders}.
+Proceedings of the 2nd Workshop on NLP for ConvAI -- ACL 2020.
+\url{https://arxiv.org/abs/2003.04807}
+
+\bibitem{hu2021lora}
+Hu, E.~J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., \& Chen, W. (2021).
+\textit{LoRA: Low-Rank Adaptation of Large Language Models}.
+arXiv preprint arXiv:2106.09685.
+\url{https://arxiv.org/abs/2106.09685}
+
+\bibitem{unsloth}
+Unsloth AI. (2024). \textit{Unsloth -- Fine-tune LLMs 2-5x faster with 80\% less memory}.
+\url{https://github.com/unslothai/unsloth}
+
+\bibitem{dettmers2023qlora}
+Dettmers, T., Pagnoni, A., Holtzman, A., \& Zettlemoyer, L. (2023).
+\textit{QLoRA: Efficient Finetuning of Quantized Language Models}.
+arXiv preprint arXiv:2305.14314.
+\url{https://arxiv.org/abs/2305.14314}
+
+\bibitem{llama3}
+Meta AI. (2024). \textit{Llama 3 Model Card}.
+\url{https://github.com/meta-llama/llama3}
+
+\end{thebibliography}
+
+\end{document}

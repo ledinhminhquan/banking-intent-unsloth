@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Model checkpoints & outputs (large files – do NOT push to GitHub)
+saved_model/
+outputs/
+*.bin
+*.safetensors
+
+# Evaluation results (regenerated on each run)
+evaluation_results.json
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/

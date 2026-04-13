@@ -1,0 +1,19 @@
+# ==============================================================================
+# Inference Configuration for Banking77 Intent Classification
+# ==============================================================================
+
+model:
+  name: "unsloth/Llama-3.2-3B-Instruct-bnb-4bit"
+  checkpoint_path: "saved_model"
+  max_seq_length: 512
+  load_in_4bit: true
+  dtype: null
+
+data:
+  label_map_file: "sample_data/label_map.json"
+  test_file: "sample_data/test.csv"
+
+generation:
+  max_new_tokens: 64
+  temperature: 0.0
+  do_sample: false
