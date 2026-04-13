@@ -20,3 +20,7 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Unsloth / HuggingFace cache (should NOT be in repo)
+huggingface_tokenizers_cache/
+unsloth_compiled_cache/

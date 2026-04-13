@@ -129,12 +129,14 @@ print(label)  # e.g. "change_pin"
 
 ## Results
 
-<!-- Update these numbers after training -->
 | Metric | Value |
 |---|---|
-| Test Accuracy | _TBD_ |
-| Training Loss | _TBD_ |
-| Training Time | _TBD_ |
+| Test Accuracy | **88.44%** (681/770) |
+| Training Loss | 0.5320 |
+| Training Time | ~4.2 min (H100 GPU) |
+| Macro Precision | 0.90 |
+| Macro Recall | 0.88 |
+| Macro F1 | 0.88 |
 
 Full classification report is saved to `evaluation_results.json` after training.
 

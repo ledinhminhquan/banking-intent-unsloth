@@ -16,8 +16,7 @@ import torch
 import pandas as pd
 from datasets import Dataset
 from unsloth import FastLanguageModel, is_bfloat16_supported
-from trl import SFTTrainer
-from transformers import TrainingArguments
+from trl import SFTTrainer, SFTConfig
 from sklearn.metrics import accuracy_score, classification_report
 
 # ---------------------------------------------------------------------------
@@ -164,9 +163,9 @@ def main(config_path: str):
     train_dataset = format_dataset(train_df, tokenizer)
     print(f"Formatted training dataset: {len(train_dataset)} examples")
 
-    # ---- Training arguments ----
+    # ---- Training arguments (SFTConfig = TrainingArguments + SFT params) ----
     use_bf16 = is_bfloat16_supported()
-    training_args = TrainingArguments(
+    sft_config = SFTConfig(
         per_device_train_batch_size=train_cfg["per_device_train_batch_size"],
         gradient_accumulation_steps=train_cfg["gradient_accumulation_steps"],
         warmup_steps=train_cfg["warmup_steps"],
@@ -183,6 +182,10 @@ def main(config_path: str):
         output_dir=train_cfg["output_dir"],
         save_strategy=train_cfg["save_strategy"],
         report_to=train_cfg.get("report_to", "none"),
+        dataset_text_field="formatted_text",
+        max_seq_length=model_cfg["max_seq_length"],
+        dataset_num_proc=2,
+        packing=False,
     )
 
     # ---- Trainer ----
@@ -190,11 +193,7 @@ def main(config_path: str):
         model=model,
         tokenizer=tokenizer,
         train_dataset=train_dataset,
-        dataset_text_field="formatted_text",
-        max_seq_length=model_cfg["max_seq_length"],
-        dataset_num_proc=2,
-        packing=False,
-        args=training_args,
+        args=sft_config,
     )
 
     # ---- Train ----

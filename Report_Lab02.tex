@@ -182,7 +182,7 @@ reproducibility.
         \toprule
         \textbf{Split} & \textbf{Samples} & \textbf{Avg. tokens/sample} \\
         \midrule
-        Training       & 3,080            & $\sim$12                    \\
+        Training       & 3,075            & $\sim$12                    \\
         Test           & 770              & $\sim$12                    \\
         \bottomrule
     \end{tabular}
@@ -318,7 +318,6 @@ Training was conducted on \textbf{Google Colab Pro} with an
 After fine-tuning, the model was evaluated on the held-out test set
 (770 samples, 10 per intent class).
 
-% PLACEHOLDER: Update with actual numbers after training
 \begin{table}[H]
     \centering
     \caption{Overall test set performance.}
@@ -327,12 +326,12 @@ After fine-tuning, the model was evaluated on the held-out test set
         \toprule
         \textbf{Metric}     & \textbf{Value}               \\
         \midrule
-        Accuracy             & \textit{XX.XX\%}             \\
-        Macro Precision      & \textit{XX.XX\%}             \\
-        Macro Recall         & \textit{XX.XX\%}             \\
-        Macro F1-score       & \textit{XX.XX\%}             \\
-        Training loss        & \textit{X.XXXX}              \\
-        Training time        & \textit{XX min}              \\
+        Accuracy             & 88.44\%                      \\
+        Macro Precision      & 90\%                         \\
+        Macro Recall         & 88\%                         \\
+        Macro F1-score       & 88\%                         \\
+        Training loss        & 0.5320                       \\
+        Training time        & 252.9s ($\approx$ 4.2 min)   \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -361,11 +360,11 @@ After fine-tuning, the model was evaluated on the held-out test set
         \toprule
         \textbf{Input Message}                       & \textbf{True Label}     & \textbf{Predicted} \\
         \midrule
-        ``I want to activate my new card''           & activate\_my\_card      & \textit{TBD}       \\
-        ``Why was I charged an extra fee?''           & extra\_charge\_on\_statement & \textit{TBD}  \\
-        ``How do I change my PIN number?''            & change\_pin             & \textit{TBD}       \\
-        ``My card payment is still pending''          & pending\_card\_payment  & \textit{TBD}       \\
-        ``I lost my phone''                           & lost\_or\_stolen\_phone & \textit{TBD}       \\
+        ``I want to activate my new card''           & activate\_my\_card      & activate\_my\_card       \\
+        ``Why was I charged an extra fee?''           & extra\_charge\_on\_statement & extra\_charge\_on\_statement  \\
+        ``How do I change my PIN number?''            & change\_pin             & change\_pin       \\
+        ``My card payment is still pending''          & pending\_card\_payment  & pending\_card\_payment       \\
+        ``I lost my phone''                           & lost\_or\_stolen\_phone & lost\_or\_stolen\_phone       \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -502,11 +501,13 @@ classification on the BANKING77 dataset. The key findings are:
 
 \begin{itemize}[noitemsep]
     \item 4-bit quantization with LoRA enables efficient fine-tuning of a
-          3-billion-parameter model on a single GPU.
+          3-billion-parameter model on a single GPU in under 5 minutes on H100.
     \item The Alpaca-style SFT approach can effectively reformulate
-          classification as a text generation task.
+          classification as a text generation task, achieving \textbf{88.44\%}
+          accuracy on 77 intent classes.
     \item The model achieves competitive accuracy on the 77-class intent
-          classification task even with a sampled subset of the data.
+          classification task even with a sampled subset of the data
+          (3,075 training samples).
 \end{itemize}
 
 \subsection{Challenges}
