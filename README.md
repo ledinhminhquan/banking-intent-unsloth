@@ -135,12 +135,12 @@ print(label)  # e.g. "change_pin"
 
 | Metric | Value |
 |---|---|
-| Test Accuracy | _TBD_ |
-| Macro Precision | _TBD_ |
-| Macro Recall | _TBD_ |
-| Macro F1 | _TBD_ |
-| Training Loss | _TBD_ |
-| Training Time | _TBD_ |
+| **Test Accuracy** | **87.92%** (677 / 770) |
+| Macro Precision | 0.8915 |
+| Macro Recall | 0.8792 |
+| Macro F1 | 0.8779 |
+| Training Loss | 0.5320 |
+| Training Time | 248.2s (~4.1 min on H100) |
 
 The full classification report is saved to `evaluation_results.json` after training.
 
