@@ -3,42 +3,48 @@
 % CSC15012 - Applications of Natural Language Processing in Industry
 % Project 2: Fine-tuning Intent Detection Model with Banking Dataset
 % Student: Le Dinh Minh Quan - 23127460
+%
+% Recommended compiler on Overleaf: pdfLaTeX (works fine, no Unicode font needed)
 % ==============================================================================
 \documentclass[12pt,a4paper]{article}
 
-% ---- Packages ----
+% ---- Encoding (English-only report; Vietnamese names written in ASCII) ----
 \usepackage[utf8]{inputenc}
-\usepackage[T5]{fontenc}
-\usepackage[vietnamese,english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+
+% ---- Geometry ----
 \usepackage{geometry}
 \geometry{margin=2.5cm}
+
+% ---- Graphics, math, tables ----
 \usepackage{graphicx}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{enumitem}
-\usepackage{hyperref}
-\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
-\usepackage{xurl}  % allow URL line-breaking at almost any character
-\usepackage{listings}
-
-% Allow LaTeX to be more relaxed about line endings (avoid right-margin overflow)
-\sloppy
-\emergencystretch=4em
-\usepackage{xcolor}
-\usepackage{float}
-\usepackage{caption}
-\usepackage{subcaption}
-\usepackage{fancyhdr}
-\usepackage{titlesec}
 \usepackage{array}
 \usepackage{longtable}
 \usepackage{multicol}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
 
-% ---- Code listing style ----
+% ---- Hyperlinks: xurl makes long URLs wrap at any character ----
+\usepackage{xurl}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue,
+            breaklinks=true}
+
+% ---- Code listings ----
+\usepackage{listings}
+\usepackage{xcolor}
 \lstdefinestyle{mystyle}{
     backgroundcolor=\color{gray!5},
-    basicstyle=\ttfamily\small,
+    basicstyle=\ttfamily\footnotesize,
     breaklines=true,
+    breakatwhitespace=false,
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
     captionpos=b,
     commentstyle=\color{green!50!black},
     keywordstyle=\color{blue},
@@ -50,10 +56,14 @@
     rulecolor=\color{gray!30},
     tabsize=4,
     showstringspaces=false,
+    columns=fullflexible,
+    keepspaces=true,
 }
 \lstset{style=mystyle}
 
-% ---- Header/Footer ----
+% ---- Header / Footer ----
+\usepackage{fancyhdr}
+\usepackage{titlesec}
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{\small CSC15012 -- Applications of NLP in Industry}
@@ -61,15 +71,9 @@
 \fancyfoot[C]{\thepage}
 
 % ---- Convenient project links ----
-% Long-form URL (auto line-break with xurl) – use inside body paragraphs
 \newcommand{\repolink}{\url{https://github.com/ledinhminhquan/banking-intent-unsloth}}
 \newcommand{\notebooklink}{\url{https://drive.google.com/file/d/1dd4BxqryUvpkOvmDkm8-ZWor0LHpVSZu/view?usp=sharing}}
 \newcommand{\videolink}{\url{https://drive.google.com/file/d/1D9hAiMirLMdjMijR-znzDAdYw2LGtdqP/view?usp=sharing}}
-
-% Short clickable label – use inside compact lists / tables to avoid margin overflow
-\newcommand{\repolinkshort}{\href{https://github.com/ledinhminhquan/banking-intent-unsloth}{github.com/ledinhminhquan/banking-intent-unsloth}}
-\newcommand{\notebooklinkshort}{\href{https://drive.google.com/file/d/1dd4BxqryUvpkOvmDkm8-ZWor0LHpVSZu/view?usp=sharing}{Open notebook on Google Drive}}
-\newcommand{\videolinkshort}{\href{https://drive.google.com/file/d/1D9hAiMirLMdjMijR-znzDAdYw2LGtdqP/view?usp=sharing}{Watch demo video on Google Drive}}
 
 % ==============================================================================
 \begin{document}
@@ -91,11 +95,11 @@
     {\LARGE \textbf{Fine-Tuning Intent Detection Model\\with Banking Dataset}}\\[0.2cm]
     \rule{\textwidth}{0.4pt}\\[1.5cm]
 
-    {\Large \textbf{Course:} CSC15012 -- Applications of Natural Language Processing in Industry}\\[0.5cm]
-    {\Large \textbf{Lecturer:} Dr. Nguyễn Hồng Bửu Long}\\[1.5cm]
+    {\large \textbf{Course:} CSC15012 -- Applications of Natural Language Processing in Industry}\\[0.5cm]
+    {\large \textbf{Lecturer:} Dr. Nguyen Hong Buu Long}\\[1.5cm]
 
     \begin{tabular}{ll}
-        \textbf{Student:} & Lê Đình Minh Quân \\
+        \textbf{Student:} & Le Dinh Minh Quan \\
         \textbf{Student ID:} & 23127460 \\
     \end{tabular}
 
@@ -142,16 +146,9 @@ The five tasks specified by the project brief are:
 \subsection{Project Deliverables and Links}
 
 \begin{itemize}[noitemsep]
-    \item \textbf{GitHub Repository (public):} \repolinkshort{}
-    \item \textbf{Google Colab Notebook (Drive):} \notebooklinkshort{}
-    \item \textbf{Demo Video (Drive, public):} \videolinkshort{}
-\end{itemize}
-
-\noindent The full URLs are also provided here for offline reference:
-\begin{itemize}[noitemsep]
-    \item \repolink{}
-    \item \notebooklink{}
-    \item \videolink{}
+    \item \textbf{GitHub Repository (public):}\\ \repolink{}
+    \item \textbf{Google Colab Notebook (Drive):}\\ \notebooklink{}
+    \item \textbf{Demo Video (Drive, public):}\\ \videolink{}
 \end{itemize}
 
 \subsection{Final Headline Result}
@@ -197,16 +194,16 @@ Sampling used a fixed random seed (\texttt{seed=42}) for reproducibility.
 
 \subsection{Loading the Dataset Robustly}
 
-Recent releases of the \texttt{datasets} library (>=3.0) no longer execute
-arbitrary dataset loading scripts. Because the BANKING77 repo originally
-shipped with a Python loading script, a naive
+Recent releases of the \texttt{datasets} library (version 3 and above) no
+longer execute arbitrary dataset loading scripts. Because the BANKING77 repo
+originally shipped with a Python loading script, a naive
 \texttt{load\_dataset("PolyAI/banking77")} call now raises
 \textit{``Dataset scripts are no longer supported.''} To handle this, the
 preprocessing module implements a three-tier fallback:
 \begin{enumerate}[noitemsep]
     \item Try the standard \texttt{load\_dataset} call (works on older versions).
-    \item If that fails, load from the auto-generated parquet branch by passing
-          \texttt{revision} = \texttt{"refs/convert/parquet"}.
+    \item If that fails, load from the auto-generated parquet branch using
+          the option \texttt{revision="refs/convert/parquet"}.
     \item If both fail, fetch the parquet files directly from the Hugging Face
           Hub URLs.
 \end{enumerate}
@@ -427,7 +424,7 @@ This is a strong result given that:
 \begin{table}[H]
     \centering
     \caption{Example predictions from the notebook inference demo cell.
-    All five examples below were predicted correctly.}
+    All examples below were predicted correctly.}
     \label{tab:examples}
     \begin{tabular}{p{6.4cm}ll}
         \toprule
@@ -685,8 +682,7 @@ Several practical issues had to be solved while building this pipeline:
     \item \textbf{Hugging Face \texttt{datasets} v3+ removed support for
           dataset scripts.} The original BANKING77 repo had a Python loader,
           which broke on Colab's latest environment. We added a three-tier
-          fallback (default $\rightarrow$ parquet branch $\rightarrow$ direct
-          parquet URLs).
+          fallback (default, parquet branch, direct parquet URLs).
     \item \textbf{TRL renamed several \texttt{SFTTrainer} arguments into
           \texttt{SFTConfig}.} \texttt{dataset\_text\_field},
           \texttt{max\_seq\_length}, \texttt{packing}, and
@@ -730,7 +726,7 @@ classification task in only \textbf{4.1 minutes} of training on a single H100
 GPU. The deliverables -- a public GitHub repository with the required folder
 structure, an autopilot Colab notebook with all outputs preserved, a
 standalone \texttt{IntentClassification} class with the required
-\texttt{\_\_init\_\_}/\texttt{\_\_call\_\_} signature, and a public demo
+\texttt{\_\_init\_\_} / \texttt{\_\_call\_\_} signature, and a public demo
 video -- collectively satisfy every item of the project rubric.
 
 % ==============================================================================
@@ -740,7 +736,7 @@ video -- collectively satisfy every item of the project rubric.
 \begin{thebibliography}{9}
 
 \bibitem{casanueva2020}
-Casanueva, I., Tem\v{c}inas, T., Gerber, D., Fitzpatrick, M., \& Vuli\'c, I. (2020).
+Casanueva, I., Temcinas, T., Gerber, D., Fitzpatrick, M., \& Vulic, I. (2020).
 \textit{Efficient Intent Detection with Dual Sentence Encoders}.
 Proceedings of the 2nd Workshop on NLP for ConvAI -- ACL 2020.
 \url{https://arxiv.org/abs/2003.04807}
