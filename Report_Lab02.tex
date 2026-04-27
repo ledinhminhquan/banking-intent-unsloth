@@ -158,6 +158,39 @@ The fine-tuned LLaMA 3.2 3B model achieved \textbf{87.92\% test accuracy}
 \textbf{0.8779} across all 77 intent classes, after only \textbf{248.2 seconds}
 of training on a single NVIDIA H100 GPU.
 
+\subsection{End-to-End Pipeline Overview}
+
+The whole project is orchestrated by a single ``autopilot'' Colab notebook
+(\texttt{Banking77\_Unsloth\_Colab.ipynb}) that walks through six stages, in
+this exact order:
+
+\begin{lstlisting}[language={},caption={High-level pipeline (notebook stages and what each one produces).}]
+[Step 0] Install deps + verify GPU + set HF / unsloth cache dirs
+              v
+[Step 1] Clone repo from GitHub + write configs/ + render README.md
+              v
+[Step 2] %%writefile the three scripts
+         (preprocess_data.py, train.py, inference.py)
+              v
+[Step 3] preprocess_data.py
+              -> sample_data/{train,test}.csv + label_map.json
+              v
+[Step 4] train.py
+              -> saved_model/ (LoRA adapter)
+              -> evaluation_results.json
+              v
+[Step 5] inference.py demos + full evaluation
+              -> 87.92% test accuracy
+              v
+[Step 6] Push everything (clean) to GitHub
+              -> https://github.com/ledinhminhquan/banking-intent-unsloth
+\end{lstlisting}
+
+This means a grader can fully reproduce the project by simply opening the
+committed notebook on Colab, attaching a GPU runtime, and clicking
+\textit{Runtime $\rightarrow$ Run all}. No manual file editing is required
+beyond pasting two Drive links at the top.
+
 % ==============================================================================
 \section{Data Preparation and Processing}
 \label{sec:data}
@@ -418,6 +451,60 @@ This is a strong result given that:
     recall, F1-score, and support for each of the 77 intent labels.}
     \label{fig:cls-report}
 \end{figure}
+
+\subsubsection*{Best-Performing Classes (perfect F1 = 1.00)}
+
+The model achieved a perfect classification (precision = recall = F1 = 1.00 with
+support = 10) on the following intent classes:
+
+\begin{multicols}{2}
+\begin{itemize}[noitemsep]
+    \item \texttt{age\_limit}
+    \item \texttt{atm\_support}
+    \item \texttt{balance\_not\_updated\_after\_bank\_transfer}
+    \item \texttt{cancel\_transfer}
+    \item \texttt{card\_swallowed}
+    \item \texttt{edit\_personal\_details}
+    \item \texttt{lost\_or\_stolen\_phone}
+    \item \texttt{pending\_cash\_withdrawal}
+    \item \texttt{pin\_blocked}
+    \item \texttt{terminate\_account}
+\end{itemize}
+\end{multicols}
+
+These are intents whose surface vocabulary is unambiguous (e.g.,
+\textit{``what is the age limit''}, \textit{``my card got stuck in the
+ATM''}), so even with 40 training samples per class the model learned them
+trivially.
+
+\subsubsection*{Hardest Classes (F1 \texttt{<} 0.70)}
+
+The lowest-scoring classes were dominated by semantic overlap with sibling
+intents:
+
+\begin{table}[H]
+    \centering
+    \caption{Bottom classes by F1-score, with the most likely confusion
+    partner in BANKING77 noted.}
+    \label{tab:hard-classes}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Class}                                & \textbf{P}  & \textbf{R}  & \textbf{F1}  \\
+        \midrule
+        \texttt{beneficiary\_not\_allowed}            & 0.71        & 0.50        & 0.59         \\
+        \texttt{direct\_debit\_payment\_not\_recognised} & 1.00     & 0.50        & 0.67         \\
+        \texttt{card\_payment\_not\_recognised}       & 0.50        & 1.00        & 0.67         \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+For example, \texttt{card\_payment\_not\_recognised} has perfect recall but
+low precision -- the model sometimes \textit{over-predicts} it for messages
+that actually belong to \texttt{direct\_debit\_payment\_not\_recognised} or
+\texttt{cash\_withdrawal\_not\_recognised}, which share most of their
+vocabulary (\textit{``I do not recognise this payment''}). This is a known
+failure mode in BANKING77 and is exactly the kind of error a larger training
+set or a soft-label smoothing technique would help fix.
 
 \subsection{Example Predictions from the Notebook Demo}
 
@@ -713,6 +800,73 @@ Several practical issues had to be solved while building this pipeline:
           underrepresented classes.
     \item Compare with smaller encoder baselines (DistilBERT, RoBERTa, MPNet).
 \end{itemize}
+
+% ==============================================================================
+\section{Reproducibility}
+\label{sec:repro}
+% ==============================================================================
+
+The entire project is fully reproducible from the public GitHub repository.
+
+\subsection{Option A -- One-Click on Colab (recommended)}
+
+\begin{enumerate}[noitemsep]
+    \item Open \texttt{Banking77\_Unsloth\_Colab.ipynb} from the repository
+          (or from the Drive notebook backup).
+    \item \texttt{Runtime $\rightarrow$ Change runtime type $\rightarrow$ GPU}
+          (H100 / A100 / T4 all work).
+    \item Add two Colab Secrets: \texttt{GITHUB\_PAT} (write scope) and
+          \texttt{HF\_TOKEN} (optional, helps avoid HuggingFace rate limits).
+    \item Click \texttt{Runtime $\rightarrow$ Run all}. Total wall-clock time
+          on H100: about 6 minutes (1 min install, 4 min training, 1 min
+          evaluation + push).
+\end{enumerate}
+
+\subsection{Option B -- Local CLI}
+
+\begin{lstlisting}[language=bash,caption={Local reproduction commands (Linux / WSL).}]
+# 1. Clone
+git clone https://github.com/ledinhminhquan/banking-intent-unsloth.git
+cd banking-intent-unsloth
+
+# 2. Environment
+pip install unsloth
+pip install datasets pandas scikit-learn pyyaml
+
+# 3. Data preparation
+python scripts/preprocess_data.py \
+    --train_samples_per_class 40 \
+    --test_samples_per_class 10 \
+    --output_dir sample_data \
+    --seed 42
+
+# 4. Fine-tuning
+python scripts/train.py --config configs/train.yaml
+
+# 5. Standalone inference (single message)
+python scripts/inference.py \
+    --config configs/inference.yaml \
+    --message "I need to change my PIN number"
+
+# 6. Full evaluation
+python scripts/inference.py --config configs/inference.yaml --evaluate
+\end{lstlisting}
+
+\subsection{Determinism Notes}
+
+All random sources are seeded:
+\begin{itemize}[noitemsep]
+    \item Data sampling: \texttt{seed=42} (in \texttt{preprocess\_data.py}).
+    \item Train/eval shuffling: same seed.
+    \item Trainer: \texttt{seed=42}, \texttt{lora.random\_state=3407}.
+    \item Inference: greedy decoding (\texttt{do\_sample=false},
+          \texttt{temperature=0}).
+\end{itemize}
+However, exact reproduction of the \textbf{87.92\%} headline number can vary
+slightly run-to-run because Unsloth, BitsAndBytes, and CUDA kernels introduce
+small non-determinism in 4-bit quantization. We have observed a stable range
+of \textbf{87--89\%} test accuracy across multiple H100 runs with the same
+hyperparameters, which is the expected variance for this setup.
 
 % ==============================================================================
 \section{Conclusion}
