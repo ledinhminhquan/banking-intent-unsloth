@@ -36,6 +36,9 @@
 \hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue,
             breaklinks=true}
 
+% ---- Better typesetting + flexible line breaking for long monospace strings ----
+\usepackage{microtype}
+
 % ---- Code listings ----
 \usepackage{listings}
 \usepackage{xcolor}
@@ -77,6 +80,10 @@
 
 % ==============================================================================
 \begin{document}
+
+% Encourage looser line-breaking globally so long monospace tokens do not
+% overflow the right margin.
+\sloppy
 
 % ---- Title page ----
 \begin{titlepage}
@@ -161,8 +168,9 @@ of training on a single NVIDIA H100 GPU.
 \subsection{End-to-End Pipeline Overview}
 
 The whole project is orchestrated by a single ``autopilot'' Colab notebook
-(\texttt{Banking77\_Unsloth\_Colab.ipynb}) that walks through six stages, in
-this exact order:
+(file name:
+\texttt{Banking77\_\allowbreak Unsloth\_\allowbreak Colab.ipynb}).
+It walks through six stages, in this exact order:
 
 \begin{lstlisting}[language={},caption={High-level pipeline (notebook stages and what each one produces).}]
 [Step 0] Install deps + verify GPU + set HF / unsloth cache dirs
@@ -235,8 +243,9 @@ originally shipped with a Python loading script, a naive
 preprocessing module implements a three-tier fallback:
 \begin{enumerate}[noitemsep]
     \item Try the standard \texttt{load\_dataset} call (works on older versions).
-    \item If that fails, load from the auto-generated parquet branch using
-          the option \texttt{revision="refs/convert/parquet"}.
+    \item If that fails, switch to the auto-generated parquet branch by
+          passing the argument
+          \texttt{revision="refs/\allowbreak convert/\allowbreak parquet"}.
     \item If both fail, fetch the parquet files directly from the Hugging Face
           Hub URLs.
 \end{enumerate}
@@ -457,11 +466,10 @@ This is a strong result given that:
 The model achieved a perfect classification (precision = recall = F1 = 1.00 with
 support = 10) on the following intent classes:
 
-\begin{multicols}{2}
 \begin{itemize}[noitemsep]
     \item \texttt{age\_limit}
     \item \texttt{atm\_support}
-    \item \texttt{balance\_not\_updated\_after\_bank\_transfer}
+    \item \texttt{balance\_not\_updated\_\allowbreak after\_bank\_transfer}
     \item \texttt{cancel\_transfer}
     \item \texttt{card\_swallowed}
     \item \texttt{edit\_personal\_details}
@@ -470,7 +478,6 @@ support = 10) on the following intent classes:
     \item \texttt{pin\_blocked}
     \item \texttt{terminate\_account}
 \end{itemize}
-\end{multicols}
 
 These are intents whose surface vocabulary is unambiguous (e.g.,
 \textit{``what is the age limit''}, \textit{``my card got stuck in the
@@ -498,13 +505,14 @@ intents:
     \end{tabular}
 \end{table}
 
-For example, \texttt{card\_payment\_not\_recognised} has perfect recall but
-low precision -- the model sometimes \textit{over-predicts} it for messages
-that actually belong to \texttt{direct\_debit\_payment\_not\_recognised} or
-\texttt{cash\_withdrawal\_not\_recognised}, which share most of their
-vocabulary (\textit{``I do not recognise this payment''}). This is a known
-failure mode in BANKING77 and is exactly the kind of error a larger training
-set or a soft-label smoothing technique would help fix.
+For example, \texttt{card\_payment\_\allowbreak not\_recognised} has perfect
+recall but low precision -- the model sometimes \textit{over-predicts} it for
+messages that actually belong to a sibling class such as
+\texttt{direct\_debit\_\allowbreak payment\_not\_recognised} or
+\texttt{cash\_withdrawal\_\allowbreak not\_recognised}, which share most of
+their vocabulary (\textit{``I do not recognise this payment''}). This is a
+known failure mode in BANKING77 and is exactly the kind of error a larger
+training set or a soft-label smoothing technique would help fix.
 
 \subsection{Example Predictions from the Notebook Demo}
 
