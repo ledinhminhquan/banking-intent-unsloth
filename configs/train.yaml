@@ -54,4 +54,5 @@ evaluate:
   run_eval_after_training: true
   max_new_tokens: 64
   temperature: 0.0
+  do_sample: false
   results_file: "evaluation_results.json"

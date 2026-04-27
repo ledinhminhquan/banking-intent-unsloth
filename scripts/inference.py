@@ -21,6 +21,7 @@ import os
 import json
 import argparse
 import time
+import warnings
 from difflib import get_close_matches
 
 import yaml
@@ -28,6 +29,17 @@ import torch
 import pandas as pd
 from unsloth import FastLanguageModel
 from sklearn.metrics import accuracy_score, classification_report
+
+warnings.filterwarnings(
+    "ignore",
+    message=r"Both `max_new_tokens` .* `max_length`.*",
+    category=UserWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message=r"The attention mask API under `transformers\.modeling_attn_mask_utils`.*",
+    category=FutureWarning,
+)
 
 # Must match the template used during training (see scripts/train.py)
 PROMPT_TEMPLATE = (
@@ -62,7 +74,7 @@ class IntentClassification:
         self.gen_cfg = config.get("generation", {})
 
         checkpoint = model_cfg["checkpoint_path"]
-        print(f"Loading model from: {checkpoint} …")
+        print(f"Loading model from: {checkpoint} ...")
         self.model, self.tokenizer = FastLanguageModel.from_pretrained(
             model_name=checkpoint,
             max_seq_length=model_cfg.get("max_seq_length", 512),
@@ -101,8 +113,9 @@ class IntentClassification:
                 **inputs,
                 max_new_tokens=self.gen_cfg.get("max_new_tokens", 64),
                 temperature=self.gen_cfg.get("temperature", 0.0),
-                do_sample=False,
+                do_sample=self.gen_cfg.get("do_sample", False),
                 use_cache=True,
+                pad_token_id=self.tokenizer.eos_token_id,
             )
 
         new_tokens = output_ids[0][inputs["input_ids"].shape[1] :]
@@ -125,7 +138,7 @@ def evaluate(classifier: IntentClassification, test_file: str):
     test_df = pd.read_csv(test_file)
     y_true, y_pred = [], []
 
-    print(f"\nRunning evaluation on {len(test_df)} test samples …\n")
+    print(f"\nRunning evaluation on {len(test_df)} test samples ...\n")
     start = time.time()
 
     for idx, row in test_df.iterrows():
@@ -162,7 +175,7 @@ def interactive_mode(classifier: IntentClassification):
         if not message:
             continue
         label = classifier(message)
-        print(f"  → Intent: {label}\n")
+        print(f"  -> Intent: {label}\n")
     print("Goodbye!")
 
 

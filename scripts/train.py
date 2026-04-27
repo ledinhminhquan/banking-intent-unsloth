@@ -9,6 +9,7 @@ import os
 import json
 import argparse
 import time
+import warnings
 from difflib import get_close_matches
 
 import yaml
@@ -18,6 +19,17 @@ from datasets import Dataset
 from unsloth import FastLanguageModel, is_bfloat16_supported
 from trl import SFTTrainer, SFTConfig
 from sklearn.metrics import accuracy_score, classification_report
+
+warnings.filterwarnings(
+    "ignore",
+    message=r"Both `max_new_tokens` .* `max_length`.*",
+    category=UserWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message=r"The attention mask API under `transformers\.modeling_attn_mask_utils`.*",
+    category=FutureWarning,
+)
 
 # ---------------------------------------------------------------------------
 # Prompt template (Alpaca-style) – must be identical at training & inference
@@ -62,7 +74,7 @@ def evaluate_model(model, tokenizer, test_df, id2label, gen_cfg):
     all_labels = list(set(id2label.values()))
     y_true, y_pred = [], []
 
-    print(f"\nEvaluating on {len(test_df)} test samples …")
+    print(f"\nEvaluating on {len(test_df)} test samples ...")
     start = time.time()
 
     for idx, row in test_df.iterrows():
@@ -74,8 +86,9 @@ def evaluate_model(model, tokenizer, test_df, id2label, gen_cfg):
                 **inputs,
                 max_new_tokens=gen_cfg.get("max_new_tokens", 64),
                 temperature=gen_cfg.get("temperature", 0.0),
-                do_sample=False,
+                do_sample=gen_cfg.get("do_sample", False),
                 use_cache=True,
+                pad_token_id=tokenizer.eos_token_id,
             )
 
         new_tokens = output_ids[0][inputs["input_ids"].shape[1] :]
@@ -95,18 +108,29 @@ def evaluate_model(model, tokenizer, test_df, id2label, gen_cfg):
             print(f"  [{idx+1}/{len(test_df)}]  elapsed {elapsed:.1f}s")
 
     acc = accuracy_score(y_true, y_pred)
-    report = classification_report(y_true, y_pred, zero_division=0)
+    report_text = classification_report(y_true, y_pred, zero_division=0)
+    report_dict = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
     elapsed = time.time() - start
 
+    macro_precision = report_dict["macro avg"]["precision"]
+    macro_recall = report_dict["macro avg"]["recall"]
+    macro_f1 = report_dict["macro avg"]["f1-score"]
+
     print(f"\nTest Accuracy : {acc:.4f}  ({sum(a==b for a,b in zip(y_true,y_pred))}/{len(y_true)})")
+    print(f"Macro Precision: {macro_precision:.4f}")
+    print(f"Macro Recall   : {macro_recall:.4f}")
+    print(f"Macro F1       : {macro_f1:.4f}")
     print(f"Evaluation time: {elapsed:.1f}s")
-    print(f"\nClassification Report:\n{report}")
+    print(f"\nClassification Report:\n{report_text}")
 
     return {
         "accuracy": acc,
         "num_correct": sum(a == b for a, b in zip(y_true, y_pred)),
         "num_total": len(y_true),
-        "classification_report": report,
+        "macro_precision": macro_precision,
+        "macro_recall": macro_recall,
+        "macro_f1": macro_f1,
+        "classification_report": report_text,
         "predictions": [
             {"text": t, "true": yt, "pred": yp}
             for t, yt, yp in zip(test_df["text"].tolist(), y_true, y_pred)
@@ -139,7 +163,7 @@ def main(config_path: str):
     print(f"Num labels       : {label_data['num_labels']}")
 
     # ---- Load model ----
-    print(f"\nLoading model: {model_cfg['name']} …")
+    print(f"\nLoading model: {model_cfg['name']} ...")
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_cfg["name"],
         max_seq_length=model_cfg["max_seq_length"],
@@ -216,6 +240,7 @@ def main(config_path: str):
         gen_cfg = {
             "max_new_tokens": eval_cfg.get("max_new_tokens", 64),
             "temperature": eval_cfg.get("temperature", 0.0),
+            "do_sample": eval_cfg.get("do_sample", False),
         }
         results = evaluate_model(model, tokenizer, test_df, id2label, gen_cfg)
 
@@ -226,6 +251,9 @@ def main(config_path: str):
                     "accuracy": results["accuracy"],
                     "num_correct": results["num_correct"],
                     "num_total": results["num_total"],
+                    "macro_precision": results["macro_precision"],
+                    "macro_recall": results["macro_recall"],
+                    "macro_f1": results["macro_f1"],
                     "classification_report": results["classification_report"],
                     "training_loss": trainer_stats.training_loss,
                     "training_time_seconds": train_elapsed,

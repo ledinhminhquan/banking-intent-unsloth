@@ -52,18 +52,22 @@ BANKING77_LABELS = [
 
 def _load_banking77():
     """Load BANKING77 with multiple fallbacks for different datasets versions."""
-    # Strategy 1: direct load (works with datasets < 3.0)
+    # Strategy 1: regular dataset load with trust_remote_code
     try:
-        ds = load_dataset("PolyAI/banking77")
+        ds = load_dataset("PolyAI/banking77", trust_remote_code=True)
         label_names = ds["train"].features["label"].names
-        print("  Loaded via default method.")
+        print("  Loaded via default method (trust_remote_code=True).")
         return ds, label_names
     except Exception as e:
         print(f"  Default load failed: {e}")
 
-    # Strategy 2: auto-converted parquet branch (works with datasets >= 3.0)
+    # Strategy 2: auto-converted parquet branch
     try:
-        ds = load_dataset("PolyAI/banking77", revision="refs/convert/parquet")
+        ds = load_dataset(
+            "PolyAI/banking77",
+            revision="refs/convert/parquet",
+            trust_remote_code=True,
+        )
         try:
             label_names = ds["train"].features["label"].names
         except (AttributeError, KeyError):
@@ -73,7 +77,7 @@ def _load_banking77():
     except Exception as e:
         print(f"  Parquet revision failed: {e}")
 
-    # Strategy 3: load parquet files directly from HF Hub
+    # Strategy 3: direct parquet files from the Hub
     try:
         base = "hf://datasets/PolyAI/banking77@refs%2Fconvert%2Fparquet"
         ds = load_dataset(
@@ -89,20 +93,37 @@ def _load_banking77():
         print(f"  Direct parquet failed: {e}")
 
     raise RuntimeError(
-        "Could not load BANKING77. Try: pip install 'datasets<3'"
+        "Could not load BANKING77. Try upgrading datasets or re-running with internet access."
     )
 
 
 def clean_text(text: str) -> str:
     """Basic text normalization for banking queries."""
-    text = text.strip()
+    text = str(text).strip()
     text = text.lower()
     text = re.sub(r"\s+", " ", text)
     return text
 
 
+def _sample_per_class(df: pd.DataFrame, max_per_class: int, seed: int) -> pd.DataFrame:
+    if max_per_class <= 0:
+        return df.copy()
+
+    sampled = (
+        df.groupby("label", group_keys=False)
+        .apply(
+            lambda g: g.sample(
+                n=min(max_per_class, len(g)),
+                random_state=seed,
+            )
+        )
+        .reset_index(drop=True)
+    )
+    return sampled
+
+
 def main(args):
-    print("Loading BANKING77 dataset from HuggingFace …")
+    print("Loading BANKING77 dataset from HuggingFace ...")
     dataset, label_names = _load_banking77()
 
     id2label = {str(i): name for i, name in enumerate(label_names)}
@@ -115,30 +136,12 @@ def main(args):
     train_df["label_text"] = train_df["label"].map(lambda x: id2label[str(x)])
     test_df["label_text"] = test_df["label"].map(lambda x: id2label[str(x)])
 
-    # ---- Sample a subset to fit available compute ----
-    if args.train_samples_per_class > 0:
-        train_df = (
-            train_df.groupby("label", group_keys=False)
-            .apply(
-                lambda g: g.sample(
-                    n=min(args.train_samples_per_class, len(g)),
-                    random_state=args.seed,
-                )
-            )
-            .reset_index(drop=True)
-        )
+    original_train_counts = train_df["label"].value_counts().sort_index()
+    original_test_counts = test_df["label"].value_counts().sort_index()
 
-    if args.test_samples_per_class > 0:
-        test_df = (
-            test_df.groupby("label", group_keys=False)
-            .apply(
-                lambda g: g.sample(
-                    n=min(args.test_samples_per_class, len(g)),
-                    random_state=args.seed,
-                )
-            )
-            .reset_index(drop=True)
-        )
+    # ---- Sample a subset to fit available compute ----
+    train_df = _sample_per_class(train_df, args.train_samples_per_class, args.seed)
+    test_df = _sample_per_class(test_df, args.test_samples_per_class, args.seed)
 
     # ---- Clean text ----
     train_df["text"] = train_df["text"].apply(clean_text)
@@ -166,9 +169,21 @@ def main(args):
             ensure_ascii=False,
         )
 
+    requested_train = args.train_samples_per_class
+    requested_test = args.test_samples_per_class
+
+    under_train = int((original_train_counts < requested_train).sum()) if requested_train > 0 else 0
+    under_test = int((original_test_counts < requested_test).sum()) if requested_test > 0 else 0
+
     print(f"Number of intent labels : {num_labels}")
+    print(f"Requested train/class   : {requested_train}")
+    print(f"Requested test/class    : {requested_test}")
     print(f"Training samples        : {len(train_df)}")
     print(f"Test samples            : {len(test_df)}")
+    if requested_train > 0:
+        print(f"Classes with < {requested_train} train samples in original split : {under_train}")
+    if requested_test > 0:
+        print(f"Classes with < {requested_test} test samples in original split  : {under_test}")
     print(f"Files saved to          : {args.output_dir}/")
     print(f"  - {train_path}")
     print(f"  - {test_path}")

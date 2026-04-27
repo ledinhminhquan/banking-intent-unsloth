@@ -12,6 +12,13 @@ outputs/
 # Evaluation results (regenerated on each run)
 evaluation_results.json
 
+# Unsloth / Hugging Face caches
+huggingface_tokenizers_cache/
+unsloth_compiled_cache/
+hf_cache/
+.cache/
+wandb/
+
 # IDE / OS
 .vscode/
 .idea/
@@ -20,7 +27,3 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
-
-# Unsloth / HuggingFace cache (should NOT be in repo)
-huggingface_tokenizers_cache/
-unsloth_compiled_cache/

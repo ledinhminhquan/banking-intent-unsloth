@@ -1,16 +1,16 @@
 # Banking77 Intent Classification with Unsloth
 
-Fine-tuning a large language model (LLaMA 3.2 3B) for **banking intent classification** on the [BANKING77](https://huggingface.co/datasets/PolyAI/banking77) dataset using **Unsloth** (4-bit QLoRA).
+Fine-tuning a large language model (**LLaMA 3.2 3B Instruct**) for **banking intent classification** on the [BANKING77](https://huggingface.co/datasets/PolyAI/banking77) dataset using **Unsloth** (4-bit QLoRA).
 
-> **Course**: CSC15012 – Applications of Natural Language Processing in Industry  
-> **Student**: Lê Đình Minh Quân – 23127460  
+> **Course**: CSC15012 – Applications of Natural Language Processing in Industry
+> **Student**: Lê Đình Minh Quân – 23127460
 > **University**: HCMUS – VNUHCM
 
 ---
 
 ## Project Structure
 
-```
+```text
 banking-intent-unsloth/
 ├── scripts/
 │   ├── preprocess_data.py    # Download & preprocess BANKING77
@@ -27,7 +27,7 @@ banking-intent-unsloth/
 ├── inference.sh              # One-click inference / demo script
 ├── requirements.txt          # Python dependencies
 ├── .gitignore
-└── README.md                 # This file
+└── README.md
 ```
 
 ---
@@ -39,7 +39,7 @@ banking-intent-unsloth/
 Open a **Colab notebook** with a **GPU runtime** (T4 / A100 / H100) and run:
 
 ```bash
-# Install Unsloth (optimized for Colab)
+# Install Unsloth
 pip install unsloth
 
 # Install remaining dependencies
@@ -60,7 +60,12 @@ python scripts/preprocess_data.py \
     --seed 42
 ```
 
-This downloads the BANKING77 dataset, samples a subset (≈ 3,080 train / 770 test), applies text preprocessing, and saves CSV files under `sample_data/`.
+This downloads the BANKING77 dataset, samples a compute-friendly subset, applies text preprocessing, and saves CSV files under `sample_data/`.
+
+**Current sampled split from this notebook run**
+- Train: **3075**
+- Test: **770**
+- Number of intent labels: **77**
 
 ### 3. Training
 
@@ -68,7 +73,7 @@ This downloads the BANKING77 dataset, samples a subset (≈ 3,080 train / 770 te
 python scripts/train.py --config configs/train.yaml
 ```
 
-Or use the all-in-one script:
+Or run the all-in-one script:
 
 ```bash
 bash train.sh
@@ -81,35 +86,35 @@ bash train.sh
 | Base model | `unsloth/Llama-3.2-3B-Instruct-bnb-4bit` |
 | LoRA rank (r) | 16 |
 | LoRA alpha | 16 |
-| Learning rate | 2 × 10⁻⁴ |
+| Learning rate | 2e-4 |
 | Optimizer | AdamW 8-bit |
-| Batch size | 8 × 4 (gradient accumulation) |
+| Batch size | 8 x 4 (gradient accumulation) |
 | Epochs | 3 |
 | Max sequence length | 512 |
 | Precision | bf16 (auto-detects fp16 fallback) |
 
-The fine-tuned LoRA adapter is saved to `saved_model/`.
+The fine-tuned adapter is saved to `saved_model/`.
 
 ### 4. Inference
 
-**Single message:**
+**Single message**
 ```bash
 python scripts/inference.py \
     --config configs/inference.yaml \
     --message "I want to activate my new card"
 ```
 
-**Test-set evaluation:**
+**Evaluate the full test set**
 ```bash
 python scripts/inference.py --config configs/inference.yaml --evaluate
 ```
 
-**Interactive mode:**
+**Interactive mode**
 ```bash
 python scripts/inference.py --config configs/inference.yaml --interactive
 ```
 
-**Or use the demo script:**
+**Or use the demo shell script**
 ```bash
 bash inference.sh
 ```
@@ -120,7 +125,6 @@ bash inference.sh
 from scripts.inference import IntentClassification
 
 classifier = IntentClassification("configs/inference.yaml")
-
 label = classifier("I need to change my PIN")
 print(label)  # e.g. "change_pin"
 ```
@@ -131,34 +135,36 @@ print(label)  # e.g. "change_pin"
 
 | Metric | Value |
 |---|---|
-| Test Accuracy | **88.44%** (681/770) |
-| Training Loss | 0.5320 |
-| Training Time | ~4.2 min (H100 GPU) |
-| Macro Precision | 0.90 |
+| Test Accuracy | 87.92% |
+| Macro Precision | 0.89 |
 | Macro Recall | 0.88 |
 | Macro F1 | 0.88 |
+| Training Loss | 0.5320 |
+| Training Time | 248.2s (~4.1 min) |
 
-Full classification report is saved to `evaluation_results.json` after training.
+The full classification report is saved to `evaluation_results.json` after training.
 
 ---
 
-## Video Demonstration
+## Links
 
-<!-- Replace with your actual Google Drive link -->
-📹 **Video link**: [Google Drive – Demo Video](https://drive.google.com/YOUR_VIDEO_LINK_HERE)
+📓 **Notebook link**: [Google Drive / Colab Notebook](https://drive.google.com/file/d/1dd4BxqryUvpkOvmDkm8-ZWor0LHpVSZu/view?usp=sharing)
 
-The video shows:
-1. Running the inference script
-2. Example input messages and predicted intents
-3. Test-set accuracy
+📹 **Video link**: _Update this link after recording and uploading your public demo video._
+
+The demo video should clearly show:
+1. How the inference script is executed
+2. At least one example input message
+3. The predicted intent label
+4. The final test accuracy
 
 ---
 
 ## References
 
-- [BANKING77 Dataset](https://huggingface.co/datasets/PolyAI/banking77) – Casanueva et al. (2020)
-- [Unsloth](https://github.com/unslothai/unsloth) – Efficient LLM fine-tuning
-- [LoRA: Low-Rank Adaptation of Large Language Models](https://arxiv.org/abs/2106.09685) – Hu et al. (2021)
+- [BANKING77 Dataset](https://huggingface.co/datasets/PolyAI/banking77)
+- [Unsloth](https://github.com/unslothai/unsloth)
+- [LoRA: Low-Rank Adaptation of Large Language Models](https://arxiv.org/abs/2106.09685)
 
 ---
 
