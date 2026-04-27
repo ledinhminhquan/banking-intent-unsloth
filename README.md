@@ -135,12 +135,12 @@ print(label)  # e.g. "change_pin"
 
 | Metric | Value |
 |---|---|
-| Test Accuracy | 87.92% |
-| Macro Precision | 0.89 |
-| Macro Recall | 0.88 |
-| Macro F1 | 0.88 |
-| Training Loss | 0.5320 |
-| Training Time | 248.2s (~4.1 min) |
+| Test Accuracy | _TBD_ |
+| Macro Precision | _TBD_ |
+| Macro Recall | _TBD_ |
+| Macro F1 | _TBD_ |
+| Training Loss | _TBD_ |
+| Training Time | _TBD_ |
 
 The full classification report is saved to `evaluation_results.json` after training.
 
@@ -150,7 +150,7 @@ The full classification report is saved to `evaluation_results.json` after train
 
 📓 **Notebook link**: [Google Drive / Colab Notebook](https://drive.google.com/file/d/1dd4BxqryUvpkOvmDkm8-ZWor0LHpVSZu/view?usp=sharing)
 
-📹 **Video link**: _Update this link after recording and uploading your public demo video._
+📹 **Video link**: [Google Drive – Demo Video](https://drive.google.com/file/d/1D9hAiMirLMdjMijR-znzDAdYw2LGtdqP/view?usp=sharing)
 
 The demo video should clearly show:
 1. How the inference script is executed
